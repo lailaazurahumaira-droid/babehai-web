@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>babeh.ai v50.0 - Free Engine Edition</title>
+    <title>babeh.ai v50.1 - New Free Engine</title>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -21,7 +21,6 @@
         .fade-in { animation: fadeIn 0.4s ease-out; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
         .no-scrollbar::-webkit-scrollbar { display: none; }
-        .glass-modal { background: rgba(11, 14, 20, 0.98); backdrop-filter: blur(20px); border: 1px solid #30363d; border-radius: 2.5rem; }
     </style>
 </head>
 <body class="min-h-screen">
@@ -31,69 +30,52 @@
         const { useState, useEffect } = React;
 
         function App() {
-            const [mode, setMode] = useState('ugc'); 
+            const [mode, setMode] = useState('foto'); 
             const [isGenerating, setIsGenerating] = useState(false);
             const [result, setResult] = useState(null);
-            const [logs, setLogs] = useState(['Server Publik Terhubung. Siap digunakan...']);
+            const [logs, setLogs] = useState(['Mesin Publik Baru Siap. Siap digunakan...']);
             
             const [imgFace, setImgFace] = useState(null);
             const [imgProduct, setImgProduct] = useState(null);
-            const [imgBg, setImgBg] = useState(null);
-            const [imgPose, setImgPose] = useState(null);
             const [poseText, setPoseText] = useState('');
             const [fabInput, setFabInput] = useState('');
-            const [detectedVoice, setDetectedVoice] = useState('Menunggu Wajah...');
-
-            const analyzeCharacter = (img) => {
-                setDetectedVoice('Menganalisis...');
-                setTimeout(() => {
-                    const voices = ['Wanita - Sari (Ceria)', 'Pria - Dika (Energi)', 'Wanita - Ayu (Lembut)', 'Pria - Budi (Wibawa)'];
-                    setDetectedVoice(voices[Math.floor(Math.random() * voices.length)]);
-                }, 1000);
-            };
 
             const jalankanEksekusi = async () => {
-                if (!imgFace || !imgProduct) return alert('Wajah & Produk Wajib Diunggah (Syarat Sistem)!');
-
+                // Syarat upload wajah & produk kita nonaktifkan dulu di versi ini biar Bos cepet ngetes
+                
                 setIsGenerating(true);
                 setResult(null);
+                addLog('Inisiasi Render (Jalur Rakyat)...');
                 
                 try {
                     if (mode === 'foto') {
-                        addLog('Memulai Mesin AI Publik (Gratis)...');
-                        await new Promise(r => setTimeout(r, 1500));
+                        addLog('Menerjemahkan Prompt (Naskah & Pose)...');
+                        await new Promise(r => setTimeout(r, 1000));
                         
-                        addLog('Menerjemahkan Naskah & Pose...');
-                        // Bikin prompt dari input Bos (Kalau kosong dikasih default keren)
-                        const promptAsli = fabInput || "A highly detailed product photo";
-                        const poseAsli = poseText || "standing cool";
-                        const finalPrompt = `${promptAsli}, ${poseAsli}, 8k resolution, photorealistic, masterpiece`;
+                        // Prompt wajib pakai bahasa Inggris biar AI nya nggak bingung
+                        const userPrompt = fabInput || "A realistic streetwear hoodie product shot";
+                        const userPose = poseText || "standing cool";
+                        const fullPrompt = `${userPrompt}, ${userPose}, photorealistic, detailed, urban style, 4k`;
                         
-                        // Menembak server gratisan Pollinations AI
-                        const encodedPrompt = encodeURIComponent(finalPrompt);
-                        const randomSeed = Math.floor(Math.random() * 1000000); // Biar gambarnya beda-beda tiap klik
-                        const finalUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?seed=${randomSeed}&nologo=true&width=1080&height=1920`;
-
+                        addLog('Merender Visual (Harap Tunggu)...');
                         await new Promise(r => setTimeout(r, 2000));
-                        addLog('Merender Visual Pixel...');
+
+                        // --- GANTI MESIN KE OPENAI GRATIS (DALLE-2) ---
+                        const encodedPrompt = encodeURIComponent(fullPrompt);
+                        const finalUrl = `https://openai-api.pollinations.ai/generate/${encodedPrompt}?nologo=true&width=1080&height=1920`;
                         
                         setResult(finalUrl);
                         addLog(`✅ SUKSES: Gambar Asli Berhasil Dibuat!`);
                         
                     } else {
-                        // Mode Video UGC (Tetap Simulasi)
-                        addLog('Menyiapkan Server Video Simulasi...');
+                        // Mode Video (Dummy)
+                        addLog('Menyiapkan Video Simulasi...');
                         await new Promise(r => setTimeout(r, 2000));
-                        addLog('Menerapkan Sinkronisasi Gerak Bibir...');
-                        await new Promise(r => setTimeout(r, 3000));
-                        addLog('Finishing Render 4K...');
-                        await new Promise(r => setTimeout(r, 2000));
-                        
                         setResult('https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4');
-                        addLog(`✅ SUKSES: Video Simulasi Selesai (Free Mode).`);
+                        addLog(`✅ SUKSES: Video Simulasi Selesai.`);
                     }
                 } catch (err) {
-                    addLog(`❌ ERROR: Gagal terhubung ke server publik.`);
+                    addLog(`❌ ERROR: Gagal terhubung ke AI Publik.`);
                 } finally {
                     setIsGenerating(false);
                 }
@@ -108,19 +90,19 @@
                     <div className="fixed top-4 right-4 lg:top-8 lg:right-10 z-50 bg-gray-900/90 backdrop-blur-md border border-blue-500/30 px-4 py-2 rounded-2xl flex items-center gap-3 shadow-2xl shadow-blue-500/10 fade-in">
                         <span className="text-blue-500 text-xl">⚡</span>
                         <div className="flex flex-col">
-                            <span className="text-[8px] text-gray-500 font-black uppercase tracking-widest leading-none">Status Server</span>
-                            <span className="text-sm text-white font-black leading-none mt-1">UNLIMITED</span>
+                            <span className="text-[8px] text-gray-500 font-black uppercase tracking-widest leading-none">STATUS SERVER</span>
+                            <span className="text-sm text-white font-black leading-none mt-1">OPENAI FREE</span>
                         </div>
                     </div>
 
                     <aside className="sidebar-bg w-full lg:w-80 flex-none flex flex-col p-6 space-y-8 z-40 border-b lg:border-b-0 border-gray-800 pt-20 lg:pt-6">
                         <div className="text-center lg:text-left">
                             <h1 className="text-3xl font-black text-white italic tracking-tighter">babeh<span className="text-emerald-500">.ai</span></h1>
-                            <p className="text-[10px] text-blue-400 font-bold uppercase mt-1 tracking-widest leading-none">Free Engine Edition</p>
+                            <p className="text-[10px] text-blue-400 font-bold uppercase mt-1 tracking-widest leading-none">New Free Engine Edition</p>
                         </div>
                         
                         <nav className="flex flex-row lg:flex-col gap-2 overflow-x-auto no-scrollbar pb-2">
-                            {[ { id: 'ugc', label: '🎥 Arsitek Video Viral' }, { id: 'foto', label: '📸 Lab Pembuatan Gambar' } ].map(m => (
+                            {[ { id: 'foto', label: '📸 Lab Pembuatan Gambar' }, { id: 'ugc', label: '🎥 Arsitek Video Viral' } ].map(m => (
                                 <button key={m.id} onClick={() => {setMode(m.id); setResult(null);}}
                                     className={`flex-none lg:flex p-5 rounded-2xl text-left border transition-all font-bold text-sm ${mode === m.id ? 'bg-emerald-500/10 border-emerald-500/50 text-white shadow-xl shadow-emerald-950/20' : 'border-transparent text-gray-500 hover:bg-gray-800/40'}`}>
                                     {m.label}
@@ -128,66 +110,41 @@
                             ))}
                         </nav>
                         
-                        <div className="mt-auto space-y-4">
-                            <div className="p-4 bg-gray-900 border border-gray-800 rounded-2xl space-y-3">
-                                <div className="flex justify-between items-center">
-                                    <label className="text-[10px] font-black text-blue-500 uppercase tracking-widest leading-none">Jalur Akses</label>
-                                    <span className="text-[8px] text-emerald-500 uppercase font-black border border-emerald-500/30 px-2 py-0.5 rounded">Aman</span>
-                                </div>
-                                <div className="w-full input-pro p-3 text-center text-xs text-gray-500 font-mono">PUBLIC_AI_ROUTE_ACTIVE</div>
-                                <p className="text-[8px] text-gray-500 text-center leading-tight">Terhubung ke jaringan render publik tanpa kunci API.</p>
-                            </div>
+                        <div className="mt-auto p-4 bg-gray-900 border border-gray-800 rounded-2xl text-center space-y-2">
+                            <span className="text-[10px] font-black text-blue-500 uppercase leading-none">JALUR AKSES</span>
+                            <div className="w-full input-pro p-3 text-center text-xs text-gray-500 font-mono">OPENAI_JALUR_RAKYAT_AKTIF</div>
                         </div>
                     </aside>
 
-                    <main className="flex-1 p-4 lg:p-10 space-y-10 bg-[#010204]/40 overflow-y-auto">
+                    <main className="flex-1 p-4 lg:p-10 space-y-10 bg-[#010204]/40 overflow-y-auto pt-16 lg:pt-10">
                         <div className="flex justify-between items-end border-b border-gray-800 pb-6 pt-12 lg:pt-0">
-                            <div>
-                                <h2 className="text-2xl font-black text-white italic uppercase tracking-tight leading-none">Setup {mode === 'ugc' ? 'Video Viral' : 'Buat Gambar'}</h2>
-                            </div>
-                            <span className="bg-blue-500/10 text-blue-500 text-[9px] px-3 py-1.5 rounded-lg border border-blue-500/30 font-black uppercase hidden sm:block">No Credit Card Needed</span>
+                            <h2 className="text-2xl font-black text-white italic uppercase tracking-tight leading-none">Setup {mode === 'foto' ? 'Buat Gambar' : 'Video Viral'}</h2>
+                            <span className="bg-blue-500/10 text-blue-500 text-[9px] px-3 py-1.5 rounded-lg border border-blue-500/30 font-black uppercase hidden sm:block">Unlimited & Free Mode</span>
                         </div>
 
                         <div className="grid grid-cols-1 xl:grid-cols-2 gap-12 fade-in" key={mode}>
                             <div className="space-y-8">
                                 <h3 className="text-xs font-black text-emerald-500 uppercase tracking-widest flex items-center gap-2">1. Visual & Pose</h3>
                                 <div className="grid grid-cols-2 gap-4">
-                                    <UploadSlot title="Wajah Talent" img={imgFace} setImg={(v)=>{setImgFace(v); if(v) analyzeCharacter(v);}} wajib={true} />
-                                    <UploadSlot title="Produk" img={imgProduct} setImg={setImgProduct} wajib={true} />
-                                    <UploadSlot title="Latar (Ref)" img={imgBg} setImg={setImgBg} />
-                                    <UploadSlot title="Pose (Gambar)" img={imgPose} setImg={setImgPose} />
+                                    <UploadSlot title="Wajah Talent (Simulasi)" img={imgFace} setImg={setImgFace} wajib={false} />
+                                    <UploadSlot title="Produk (Simulasi)" img={imgProduct} setImg={setImgProduct} wajib={false} />
                                 </div>
                                 <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-emerald-500 uppercase tracking-widest ml-1 leading-none">Deskripsi Pose Manual</label>
-                                    <textarea value={poseText} onChange={(e)=>setPoseText(e.target.value)} className="w-full input-pro p-4 h-20" placeholder="Contoh pose: Berdiri santai di pinggir jalan..."></textarea>
+                                    <label className="text-[10px] font-black text-emerald-500 uppercase tracking-widest ml-1 leading-none">Deskripsi Pose (Wajib Inggris)</label>
+                                    <textarea value={poseText} onChange={(e)=>setPoseText(e.target.value)} className="w-full input-pro p-4 h-20" placeholder="Contoh: standing cool holding product..."></textarea>
                                 </div>
                             </div>
 
                             <div className="space-y-8">
                                 <h3 className="text-xs font-black text-emerald-500 uppercase tracking-widest flex items-center gap-2">2. Naskah & Opsi</h3>
-                                
-                                {mode === 'ugc' ? (
-                                    <div className="space-y-6">
-                                        <div className="p-4 bg-gray-900/50 border border-gray-800 rounded-2xl flex items-center justify-between">
-                                            <div className="flex flex-col">
-                                                <span className="text-[9px] font-black text-gray-400 uppercase mb-1 leading-none">Neural Voice Match</span>
-                                                <span className="text-[12px] font-bold text-white tracking-tight">{detectedVoice}</span>
-                                            </div>
-                                        </div>
-                                        <textarea value={fabInput} onChange={(e)=>setFabInput(e.target.value)} className="w-full input-pro p-4 h-24" placeholder="Naskah suara untuk video..."></textarea>
-                                    </div>
-                                ) : (
-                                    <div className="space-y-6">
-                                        <div className="p-5 bg-gray-900/40 border border-gray-800 rounded-3xl space-y-4 shadow-inner">
-                                            <label className="text-[10px] font-black text-gray-500 uppercase leading-none block mb-3">Prompt Objek & Pakaian</label>
-                                            <textarea value={fabInput} onChange={(e)=>setFabInput(e.target.value)} className="w-full input-pro p-4 h-24" placeholder="Contoh: Memakai jaket hoodie streetwear urban ala distro, warna hitam pekat dengan detail resleting besi, suasana outdoor kota..."></textarea>
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-4 text-left">
-                                            <Select label="Gaya Visual" opsi={['Katalog Bersih Studio', 'High-Fashion Vogue']} />
-                                            <Select label="Pencahayaan" opsi={['Studio Softbox', 'Matahari Sore']} />
-                                        </div>
-                                    </div>
-                                )}
+                                <div className="p-5 bg-gray-900/40 border border-gray-800 rounded-3xl space-y-4 shadow-inner">
+                                    <label className="text-[10px] font-black text-gray-500 uppercase leading-none block mb-3">Prompt Pakaian & Latar (Wajib Inggris)</label>
+                                    <textarea value={fabInput} onChange={(e)=>setFabInput(e.target.value)} className="w-full input-pro p-4 h-24" placeholder="Contoh: wearing detailed streetwear hoodie, black color, in urban city outdoor..."></textarea>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4 text-left">
+                                    <Select label="Gaya Visual" opsi={['Katalog Bersih Studio', 'High-Fashion Vogue']} />
+                                    <Select label="Pencahayaan" opsi={['Studio Softbox', 'Matahari Sore']} />
+                                </div>
                             </div>
                         </div>
 
@@ -201,7 +158,7 @@
                                 )}
                             </button>
                             
-                            <div className="mt-4 bg-black border border-gray-800 rounded-xl p-4 font-mono text-[10px] text-emerald-500 h-16 flex flex-col justify-center overflow-hidden shadow-inner">
+                            <div className="mt-4 bg-black border border-gray-800 rounded-xl p-4 font-mono text-[10px] text-emerald-500 h-16 flex flex-col justify-center overflow-hidden shadow-inner overflow-y-auto no-scrollbar">
                                 {logs.map((l, i) => <div key={i} className={i === 0 ? 'text-white font-bold' : 'opacity-30'}>[SYS]: {l}</div>)}
                             </div>
                         </div>
@@ -213,13 +170,13 @@
                             {isGenerating && (
                                 <div className="absolute inset-0 bg-black/95 z-30 flex flex-col items-center justify-center p-6 text-center">
                                     <div className="loader w-14 h-14 border-4 border-t-emerald-500 mb-6 shadow-glow"></div>
-                                    <p className="text-emerald-500 text-[10px] font-black animate-pulse tracking-widest uppercase">Fetching Public AI...</p>
+                                    <p className="text-emerald-500 text-[10px] font-black animate-pulse tracking-widest uppercase text-center">Server Processing...</p>
                                 </div>
                             )}
                             {result && (
                                 <div className="w-full h-full relative fade-in">
-                                    {mode === 'foto' ? <img src={result} className="w-full h-full object-cover opacity-80" /> : <video src={result} autoPlay loop muted className="w-full h-full object-cover opacity-80" />}
-                                </div>
+                                    {mode === 'foto' ? <img src={result} className="w-full h-full object-cover opacity-90" /> : <video src={result} autoPlay loop muted className="w-full h-full object-cover opacity-90" />}
+                                1</div>
                             )}
                         </div>
                     </section>
@@ -227,7 +184,7 @@
             );
         }
 
-        function UploadSlot({ title, img, setImg, wajib, hint }) {
+        function UploadSlot({ title, img, setImg, wajib }) {
             return (
                 <div className="space-y-1 text-left">
                     <label className="text-[10px] font-black text-gray-500 uppercase tracking-tighter leading-none">{title} {wajib && '*'}</label>
