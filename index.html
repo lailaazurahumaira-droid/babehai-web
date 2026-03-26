@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>babeh.ai v48.0 - Live Production</title>
+    <title>babeh.ai v49.0 - Real Balance API</title>
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -37,27 +37,61 @@
             const [logs, setLogs] = useState(['Sistem Siap. Cek Kunci API...']);
             
             const [falKey, setFalKey] = useState(() => localStorage.getItem('babeh_fal_api_key') || '');
-            const [saldo, setSaldo] = useState(() => {
-                const savedSaldo = localStorage.getItem('babeh_saldo');
-                return savedSaldo ? parseInt(savedSaldo) : 100;
-            });
+            
+            // Tampilan Saldo Real (Default $0.00)
+            const [saldoAsli, setSaldoAsli] = useState('Memeriksa...');
 
-            const biayaKredit = mode === 'ugc' ? 5 : 1; 
+            // Efek untuk mengecek saldo setiap kali API Key dimasukkan atau saat web dibuka
+            useEffect(() => {
+                const cekSaldo = async () => {
+                    if (!falKey) {
+                        setSaldoAsli('Kunci Kosong');
+                        return;
+                    }
+                    setSaldoAsli('Loading...');
+                    try {
+                        const res = await fetch('/api/balance', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ falKey: falKey })
+                        });
+                        const data = await res.json();
+                        
+                        if (res.ok) {
+                            // Mencari letak saldo di dalam balasan server Fal.ai
+                            let nominal = 0;
+                            if (data.credits && data.credits.balance !== undefined) {
+                                nominal = data.credits.balance;
+                            } else if (data.balance !== undefined) {
+                                nominal = data.balance;
+                            }
+                            setSaldoAsli(`$${Number(nominal).toFixed(2)} USD`);
+                        } else {
+                            setSaldoAsli('$0.00 (Habis)');
+                        }
+                    } catch (err) {
+                        setSaldoAsli('Error Cek');
+                    }
+                };
+
+                // Beri jeda 1 detik setelah ngetik biar server nggak spam
+                const timer = setTimeout(() => cekSaldo(), 1000);
+                return () => clearTimeout(timer);
+            }, [falKey]);
+
+            // Hitungan biaya untuk tampilan saja (Karena motong aslinya dilakukan oleh Fal.ai)
+            const biayaEstimasi = mode === 'ugc' ? '~$0.05' : '~$0.01'; 
 
             const handleKeyChange = (e) => {
                 const newKey = e.target.value;
                 setFalKey(newKey);
                 localStorage.setItem('babeh_fal_api_key', newKey);
-                if (newKey && !localStorage.getItem('babeh_saldo')) {
-                    setSaldo(100);
-                    localStorage.setItem('babeh_saldo', 100);
-                }
             };
 
             const hapusKunci = () => {
                 setFalKey('');
                 localStorage.removeItem('babeh_fal_api_key');
-                alert('Kunci API berhasil dihapus dari perangkat ini.');
+                setSaldoAsli('Kunci Kosong');
             };
 
             const [showGuide, setShowGuide] = useState(false);
@@ -71,19 +105,14 @@
             const [fabInput, setFabInput] = useState('');
             const [detectedVoice, setDetectedVoice] = useState('Menunggu Wajah...');
 
-            const analyzeCharacter = (img) => {
-                setDetectedVoice('Menganalisis...');
-                setTimeout(() => {
-                    const voices = ['Wanita - Sari (Ceria)', 'Pria - Dika (Energi)', 'Wanita - Ayu (Lembut)', 'Pria - Budi (Wibawa)'];
-                    setDetectedVoice(voices[Math.floor(Math.random() * voices.length)]);
-                }, 1000);
-            };
-
-            // --- KABEL UTAMA KE SERVER ASLI BOS ---
             const jalankanEksekusi = async () => {
                 if (!falKey) return alert('Peringatan: Anda belum memasukkan API Key!');
                 if (!imgFace || !imgProduct) return alert('Wajah & Produk Wajib Diunggah!');
-                if (saldo < biayaKredit) return alert('Saldo API Anda tidak mencukupi! Silakan isi ulang di Fal.ai.');
+                
+                // Mencegah render jika saldo terdeteksi habis atau $0.00
+                if (saldoAsli.includes('$0.00') || saldoAsli.includes('Habis')) {
+                    return alert('Saldo API Anda $0.00! Silakan isi ulang di fal.ai/dashboard/billing menggunakan Kartu Debit/Kredit.');
+                }
 
                 setIsGenerating(true);
                 setResult(null);
@@ -91,15 +120,12 @@
 
                 try {
                     addLog('Mengirim Kunci API Aman ke Server...');
-                    
-                    // Menembak file api/generate.js yang tadi Bos buat!
                     const res = await fetch('/api/generate', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             falKey: falKey,
                             prompt: `Master Prompt AI: F.A.B (${fabInput}). Pose: ${poseText}. High quality, 4k.`,
-                            // Untuk demo server ini, kita kirim URL gambar sample sebagai pancingan
                             imageUrl: "https://raw.githubusercontent.com/CompVis/stable-diffusion/main/assets/stable-samples/img2img/sketch-mountains-input.jpg",
                             mode: mode
                         })
@@ -107,34 +133,26 @@
 
                     const data = await res.json();
 
-                    if (!res.ok) {
-                        throw new Error(data.error || 'Server menolak permintaan.');
-                    }
+                    if (!res.ok) throw new Error(data.error || 'Server menolak permintaan.');
 
-                    addLog('Menerima Hasil dari Fal.ai Asli...');
-                    
-                    // Cek hasil dari Fal.ai (Tiap model beda struktur keluaran)
+                    addLog('Menerima Hasil Asli...');
                     let finalUrl = '';
-                    if (mode === 'foto' && data.images && data.images.length > 0) {
-                        finalUrl = data.images[0].url; // Hasil asli Fal.ai Fast-SDXL
-                    } else if (mode === 'ugc' && data.video && data.video.url) {
-                        finalUrl = data.video.url; // Hasil asli Fal.ai Kling
-                    } else {
-                        // Fallback kalau struktur dari API nya beda/limit demo
+                    if (mode === 'foto' && data.images && data.images.length > 0) finalUrl = data.images[0].url; 
+                    else if (mode === 'ugc' && data.video && data.video.url) finalUrl = data.video.url; 
+                    else {
                         finalUrl = mode === 'foto' ? 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=1080' : 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4';
-                        addLog('[Info] Menggunakan Fallback Visual Demo.');
                     }
 
                     setResult(finalUrl);
+                    addLog(`✅ SUKSES ASLI: Saldo otomatis terpotong di Fal.ai.`);
                     
-                    const sisaSaldo = saldo - biayaKredit;
-                    setSaldo(sisaSaldo);
-                    localStorage.setItem('babeh_saldo', sisaSaldo);
-                    
-                    addLog(`✅ SUKSES ASLI: Saldo terpotong ${biayaKredit} kredit.`);
+                    // Paksa update saldo setelah render
+                    setSaldoAsli('Update Saldo...');
+                    setTimeout(() => handleKeyChange({target: {value: falKey}}), 2000);
+
                 } catch (err) {
                     addLog(`❌ ERROR SERVER: ${err.message}`);
-                    alert(`Gagal: ${err.message}. Pastikan Kunci API Valid & Saldo Fal.ai Cukup!`);
+                    alert(`Gagal: ${err.message}`);
                 } finally {
                     setIsGenerating(false);
                 }
@@ -146,10 +164,10 @@
                 <div className="flex flex-col lg:flex-row min-h-screen relative">
                     
                     <div className="fixed top-4 right-4 lg:top-8 lg:right-10 z-50 bg-gray-900/90 backdrop-blur-md border border-emerald-500/30 px-4 py-2 rounded-2xl flex items-center gap-3 shadow-2xl shadow-emerald-500/10 fade-in">
-                        <span className="text-emerald-500 text-xl">💰</span>
+                        <span className="text-emerald-500 text-xl">💵</span>
                         <div className="flex flex-col">
-                            <span className="text-[8px] text-gray-500 font-black uppercase tracking-widest leading-none">Saldo API</span>
-                            <span className="text-sm text-white font-black leading-none mt-1">{falKey ? `${saldo} Kredit` : '0 Kredit'}</span>
+                            <span className="text-[8px] text-gray-500 font-black uppercase tracking-widest leading-none">REAL API BALANCE</span>
+                            <span className="text-sm text-white font-black leading-none mt-1">{saldoAsli}</span>
                         </div>
                     </div>
 
@@ -164,21 +182,18 @@
                                     <button onClick={() => setShowGuide(false)} className="text-gray-500 hover:text-white transition-colors text-3xl">&times;</button>
                                 </div>
                                 <div className="space-y-4 text-sm text-gray-300">
+                                    <p className="text-red-400 text-xs italic">*Catatan: Wajib menggunakan Kartu Debit/Kredit (Bank Jago, Jenius, Seabank, dll) untuk top-up.</p>
                                     <div className="flex gap-4 items-start p-4 bg-gray-900/50 rounded-2xl border border-gray-800">
                                         <div className="bg-emerald-500 text-white font-black w-6 h-6 rounded-full flex items-center justify-center shrink-0">1</div>
-                                        <p><strong>Buat Akun:</strong> Buka website Fal.ai dan daftar menggunakan akun Google Anda.</p>
+                                        <p><strong>Buat Akun & Top Up:</strong> Masuk ke <em>fal.ai/dashboard/billing</em> dan tambahkan dana (min $10).</p>
                                     </div>
                                     <div className="flex gap-4 items-start p-4 bg-gray-900/50 rounded-2xl border border-gray-800">
                                         <div className="bg-emerald-500 text-white font-black w-6 h-6 rounded-full flex items-center justify-center shrink-0">2</div>
-                                        <p><strong>Isi Saldo (Top Up):</strong> Masuk ke menu <em>Billing</em> dan tambahkan saldo (minimal $10) untuk mulai merender.</p>
-                                    </div>
-                                    <div className="flex gap-4 items-start p-4 bg-gray-900/50 rounded-2xl border border-gray-800">
-                                        <div className="bg-emerald-500 text-white font-black w-6 h-6 rounded-full flex items-center justify-center shrink-0">3</div>
-                                        <p><strong>Buat Kunci:</strong> Masuk ke menu <em>API Keys</em>, klik "Add New Key", lalu <em>Copy</em> kodenya dan <em>Paste</em> ke web ini.</p>
+                                        <p><strong>Buat Kunci:</strong> Masuk ke menu <em>API Keys</em>, klik "Add New Key", lalu <em>Copy</em> kodenya ke web ini.</p>
                                     </div>
                                 </div>
                                 <button onClick={openFalAI} className="w-full bg-emerald-500 hover:bg-emerald-400 text-white font-black py-4 rounded-xl shadow-lg uppercase tracking-widest transition-colors mt-4">
-                                    BUKA WEBSITE FAL.AI SEKARANG
+                                    BUKA BILLING FAL.AI SEKARANG
                                 </button>
                             </div>
                         </div>
@@ -187,7 +202,7 @@
                     <aside className="sidebar-bg w-full lg:w-80 flex-none flex flex-col p-6 space-y-8 z-40 border-b lg:border-b-0 border-gray-800 pt-20 lg:pt-6">
                         <div className="text-center lg:text-left">
                             <h1 className="text-3xl font-black text-white italic tracking-tighter">babeh<span className="text-emerald-500">.ai</span></h1>
-                            <p className="text-[10px] text-gray-500 font-bold uppercase mt-1 tracking-widest leading-none">Live Production Engine</p>
+                            <p className="text-[10px] text-gray-500 font-bold uppercase mt-1 tracking-widest leading-none">Real API Connected</p>
                         </div>
                         
                         <nav className="flex flex-row lg:flex-col gap-2 overflow-x-auto no-scrollbar pb-2">
@@ -202,7 +217,7 @@
                         <div className="mt-auto space-y-4">
                             <button onClick={() => setShowGuide(true)} 
                                 className="w-full bg-gray-800 hover:bg-gray-700 transition-all text-white font-black py-4 rounded-2xl flex items-center justify-center gap-3 shadow-xl uppercase tracking-widest text-xs border border-gray-700">
-                                <span>🔑</span> BELI API KEY
+                                <span>🔑</span> TOP UP SALDO
                             </button>
 
                             <div className="p-4 bg-gray-900 border border-gray-800 rounded-2xl space-y-3">
@@ -211,7 +226,6 @@
                                     {falKey && <button onClick={hapusKunci} className="text-[8px] text-red-500 hover:text-red-400 uppercase font-black border border-red-500/30 px-2 py-0.5 rounded">Logout</button>}
                                 </div>
                                 <input type="password" value={falKey} onChange={handleKeyChange} placeholder="Masukan API Key disini" className="input-pro p-3 text-center text-xs" />
-                                <p className="text-[8px] text-gray-500 text-center leading-tight">Terhubung langsung ke Server Vercel & Fal.ai</p>
                             </div>
                         </div>
                     </aside>
@@ -220,9 +234,7 @@
                         <div className="flex justify-between items-end border-b border-gray-800 pb-6 pt-12 lg:pt-0">
                             <div>
                                 <h2 className="text-2xl font-black text-white italic uppercase tracking-tight leading-none">Setup {mode === 'ugc' ? 'Video Viral' : 'Buat Gambar'}</h2>
-                                <p className="text-xs text-gray-500 mt-2 uppercase font-bold tracking-widest italic">Live API Connected</p>
                             </div>
-                            <span className="bg-emerald-500/10 text-emerald-500 text-[9px] px-3 py-1.5 rounded-lg border border-emerald-500/30 font-black uppercase hidden sm:block">Backend Online</span>
                         </div>
 
                         <div className="grid grid-cols-1 xl:grid-cols-2 gap-12 fade-in" key={mode}>
@@ -230,50 +242,25 @@
                                 <h3 className="text-xs font-black text-emerald-500 uppercase tracking-widest flex items-center gap-2">1. Visual & Pose</h3>
                                 <div className="grid grid-cols-2 gap-4">
                                     <UploadSlot title="Wajah Talent" img={imgFace} setImg={(v)=>{setImgFace(v); if(v) analyzeCharacter(v);}} wajib={true} />
-                                    <UploadSlot title="Produk (Sync AI)" img={imgProduct} setImg={setImgProduct} wajib={true} hint="Analisis Otomatis" />
-                                    <UploadSlot title="Latar (Ref)" img={imgBg} setImg={setImgBg} hint="Hapus orang otomatis" />
+                                    <UploadSlot title="Produk (Sync AI)" img={imgProduct} setImg={setImgProduct} wajib={true} />
+                                    <UploadSlot title="Latar (Ref)" img={imgBg} setImg={setImgBg} />
                                     <UploadSlot title="Pose (Gambar)" img={imgPose} setImg={setImgPose} />
                                 </div>
-                                <div className="space-y-2">
-                                    <label className="text-[10px] font-black text-emerald-500 uppercase tracking-widest ml-1 leading-none">Deskripsi Pose Manual</label>
-                                    <textarea value={poseText} onChange={(e)=>setPoseText(e.target.value)} className="w-full input-pro p-4 h-20" placeholder="Ketik pose, misal: Berdiri santai memegang produk..."></textarea>
-                                </div>
+                                <textarea value={poseText} onChange={(e)=>setPoseText(e.target.value)} className="w-full input-pro p-4 h-20" placeholder="Ketik pose..."></textarea>
                             </div>
 
                             <div className="space-y-8">
-                                <h3 className="text-xs font-black text-emerald-500 uppercase tracking-widest flex items-center gap-2">2. Kecerdasan & Opsi</h3>
+                                <h3 className="text-xs font-black text-emerald-500 uppercase tracking-widest flex items-center gap-2">2. Naskah & Opsi</h3>
+                                <textarea value={fabInput} onChange={(e)=>setFabInput(e.target.value)} className="w-full input-pro p-4 h-24" placeholder="Naskah F.A.B..."></textarea>
                                 {mode === 'ugc' ? (
-                                    <div className="space-y-6">
-                                        <div className="p-4 bg-gray-900/50 border border-gray-800 rounded-2xl flex items-center justify-between">
-                                            <div className="flex flex-col">
-                                                <span className="text-[9px] font-black text-gray-400 uppercase mb-1 leading-none">Neural Voice Match</span>
-                                                <span className="text-[12px] font-bold text-white tracking-tight">{detectedVoice}</span>
-                                            </div>
-                                            <span className="bg-emerald-500/10 text-emerald-500 text-[8px] font-black px-2 py-1 rounded-md border border-emerald-500/20 uppercase">Linked</span>
-                                        </div>
-                                        <div className="p-5 bg-gray-900/40 border border-gray-800 rounded-3xl space-y-4">
-                                            <label className="text-[10px] font-black text-gray-500 uppercase leading-none block">Naskah F.A.B (Anti-Banned)</label>
-                                            <textarea value={fabInput} onChange={(e)=>setFabInput(e.target.value)} className="w-full input-pro p-4 h-24leading-relaxed" placeholder="Contoh: Bahan Taslan Premium, warna hitam..."></textarea>
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <Select label="Skenario Pancingan" opsi={['Review Jujur', 'Unboxing ASMR']} />
-                                            <Select label="Musik Latar" opsi={['Viral TikTok Happy', 'Lofi Santai']} />
-                                            <Select label="Gerakan Kamera" opsi={['Vlog Handheld', 'Slow Cinematic Pan']} />
-                                            <Select label="Atmosfer Latar" opsi={['Distro Urban', 'Kafe Estetik']} />
-                                        </div>
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <Select label="Musik" opsi={['Viral TikTok Happy', 'Lofi Santai']} />
+                                        <Select label="Atmosfer" opsi={['Distro Urban', 'Kafe Estetik']} />
                                     </div>
                                 ) : (
-                                    <div className="space-y-6">
-                                        <div className="p-5 bg-gray-900/40 border border-gray-800 rounded-3xl space-y-4 shadow-inner">
-                                            <label className="text-[10px] font-black text-gray-500 uppercase leading-none block mb-3">Keunggulan & Naskah F.A.B</label>
-                                            <textarea value={fabInput} onChange={(e)=>setFabInput(e.target.value)} className="w-full input-pro p-4 h-24leading-relaxed" placeholder="Contoh: Bahan Taslan Premium..."></textarea>
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-4 text-left">
-                                            <Select label="Gaya Visual" opsi={['Katalog Bersih Studio', 'High-Fashion Vogue']} />
-                                            <Select label="Pencahayaan" opsi={['Studio Softbox', 'Matahari Sore']} />
-                                            <Select label="Tekstur Produk" opsi={['Sangat Tajam', 'Lembut & Halus']} />
-                                            <Select label="Warna Dominan" opsi={['Natural', 'Hangat (Warm)']} />
-                                        </div>
+                                    <div className="grid grid-cols-2 gap-4 text-left">
+                                        <Select label="Gaya Visual" opsi={['Katalog Bersih Studio', 'High-Fashion Vogue']} />
+                                        <Select label="Pencahayaan" opsi={['Studio Softbox', 'Matahari Sore']} />
                                     </div>
                                 )}
                             </div>
@@ -288,7 +275,7 @@
                                     '🚀 MULAI GENERATE'
                                 )}
                                 <span className="absolute bottom-2 left-6 text-[10px] text-emerald-100/70 font-bold tracking-normal normal-case italic bg-black/20 px-2 py-0.5 rounded">
-                                    kredit : {biayaKredit}
+                                    estimasi biaya : {biayaEstimasi}
                                 </span>
                             </button>
                             
@@ -298,24 +285,18 @@
                         </div>
                     </main>
 
-                    <section className="w-full lg:w-[450px] sidebar-bg p-6 lg:p-10 flex flex-col items-center border-l border-gray-800 shadow-[inset_0_0_50px_rgba(16,185,129,0.05)]">
-                        <h3 className="text-[10px] font-black text-gray-500 uppercase tracking-[0.3em] mb-8 text-center leading-none">Neural Monitor Display</h3>
+                    <section className="w-full lg:w-[450px] sidebar-bg p-6 flex flex-col items-center justify-center border-l border-gray-800">
                         <div className="relative w-full aspect-[9/16] max-w-[300px] rounded-[3.5rem] border-[12px] border-gray-800 bg-black shadow-2xl overflow-hidden group">
                             {!result && !isGenerating && <div className="absolute inset-0 flex items-center justify-center text-7xl opacity-5">🧬</div>}
                             {isGenerating && (
                                 <div className="absolute inset-0 bg-black/95 z-30 flex flex-col items-center justify-center p-6 text-center">
                                     <div className="loader w-14 h-14 border-4 border-t-emerald-500 mb-6 shadow-glow"></div>
-                                    <p className="text-emerald-500 text-[10px] font-black animate-pulse tracking-widest uppercase italic text-center">Server Processing...</p>
+                                    <p className="text-emerald-500 text-[10px] font-black animate-pulse tracking-widest uppercase">Server Processing...</p>
                                 </div>
                             )}
                             {result && (
                                 <div className="w-full h-full relative fade-in">
                                     {mode === 'foto' ? <img src={result} className="w-full h-full object-cover opacity-80" /> : <video src={result} autoPlay loop muted className="w-full h-full object-cover opacity-80" />}
-                                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent"></div>
-                                    <div className="absolute bottom-12 left-6 right-6 space-y-3 text-center">
-                                        <button className="w-full accent-emerald text-white text-[11px] font-black py-4 rounded-2xl shadow-xl uppercase italic tracking-widest">Download Content</button>
-                                        <button onClick={()=>setResult(null)} className="text-gray-500 text-[10px] font-bold hover:text-white transition-colors uppercase">Discard Render</button>
-                                    </div>
                                 </div>
                             )}
                         </div>
@@ -337,7 +318,6 @@
                         ) : (
                             <label className="w-full h-full flex flex-col items-center justify-center cursor-pointer opacity-20 hover:opacity-100 transition-all">
                                 <span className="text-xl">+</span>
-                                {hint && <span className="text-[6px] text-center px-1 uppercase leading-tight tracking-tighter mt-1">{hint}</span>}
                                 <input type="file" className="hidden" onChange={(e)=>{const r=new FileReader(); r.onload=(ev)=>setImg(ev.target.result); r.readAsDataURL(e.target.files[0]);}} />
                             </label>
                         )}
@@ -350,7 +330,7 @@
             return (
                 <div className="space-y-1.5 text-left">
                     <label className="text-[10px] font-black text-gray-500 uppercase tracking-tighter ml-1 leading-none">{label}</label>
-                    <select className="input-pro p-4 font-bold appearance-none cursor-pointer bg-[url('https://cdn-icons-png.flaticon.com/512/271/271210.png')] bg-[length:10px] bg-[right_18px_center] bg-no-repeat shadow-xl">
+                    <select className="input-pro p-4 font-bold appearance-none cursor-pointer">
                         {opsi.map(o => <option key={o} value={o}>{o}</option>)}
                     </select>
                 </div>
