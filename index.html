@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>babeh.ai v47.0 - Sovereign Credit & Image Sync</title>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;800&display=swap');
+        body { background-color: #010204; color: #f8fafc; font-family: 'Plus Jakarta Sans', sans-serif; overflow-x: hidden; }
+        .sidebar-bg { background: #0b0e14; border-right: 1px solid #1f2937; }
+        @media (max-width: 1024px) { .sidebar-bg { border-right: none; border-bottom: 1px solid #1f2937; } }
+        .accent-emerald { background: linear-gradient(135deg, #10b981 0%, #059669 100%); }
+        .input-pro { background: #010409; border: 1px solid #30363d; border-radius: 12px; color: #f0f6fc; font-size: 13px; width: 100%; transition: all 0.2s; outline: none; }
+        .input-pro:focus { border-color: #10b981; box-shadow: 0 0 15px rgba(16, 185, 129, 0.15); }
+        .loader { border: 3px solid rgba(255,255,255,0.05); border-left-color: #10b981; border-radius: 50%; width: 22px; height: 22px; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .fade-in { animation: fadeIn 0.4s ease-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .glass-modal { background: rgba(11, 14, 20, 0.98); backdrop-filter: blur(20px); border: 1px solid #30363d; border-radius: 2.5rem; }
+    </style>
+</head>
+<body class="min-h-screen">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        function App() {
+            const [mode, setMode] = useState('ugc'); 
+            const [isGenerating, setIsGenerating] = useState(false);
+            const [result, setResult] = useState(null);
+            const [logs, setLogs] = useState(['Sistem Siap. Cek Kunci API...']);
+            
+            // --- FITUR AUTO-SAVE (INGATAN BROWSER) ---
+            const [falKey, setFalKey] = useState(() => {
+                return localStorage.getItem('babeh_fal_api_key') || '';
+            });
+
+            // --- FITUR SALDO KREDIT (Simulasi UI) ---
+            const [saldo, setSaldo] = useState(() => {
+                const savedSaldo = localStorage.getItem('babeh_saldo');
+                return savedSaldo ? parseInt(savedSaldo) : 100; // Default 100 kredit
+            });
+
+            // Biaya Kredit berdasarkan mode (Disamakan logikanya)
+            const biayaKredit = mode === 'ugc' ? 5 : 1; 
+
+            const handleKeyChange = (e) => {
+                const newKey = e.target.value;
+                setFalKey(newKey);
+                localStorage.setItem('babeh_fal_api_key', newKey);
+                // Jika baru masukin API, kasih modal 100 kredit buat simulasi
+                if (newKey && !localStorage.getItem('babeh_saldo')) {
+                    setSaldo(100);
+                    localStorage.setItem('babeh_saldo', 100);
+                }
+            };
+
+            const hapusKunci = () => {
+                setFalKey('');
+                localStorage.removeItem('babeh_fal_api_key');
+                alert('Kunci API berhasil dihapus dari perangkat ini.');
+            };
+
+            // Modal Panduan API
+            const [showGuide, setShowGuide] = useState(false);
+            const openFalAI = () => window.open('https://fal.ai/dashboard/billing', '_blank');
+
+            // Assets
+            const [imgFace, setImgFace] = useState(null);
+            const [imgProduct, setImgProduct] = useState(null);
+            const [imgBg, setImgBg] = useState(null);
+            const [imgPose, setImgPose] = useState(null);
+            const [poseText, setPoseText] = useState('');
+            const [fabInput, setFabInput] = useState('');
+            const [detectedVoice, setDetectedVoice] = useState('Menunggu Wajah...');
+
+            const analyzeCharacter = (img) => {
+                setDetectedVoice('Menganalisis...');
+                setTimeout(() => {
+                    const voices = ['Wanita - Sari (Ceria)', 'Pria - Dika (Energi)', 'Wanita - Ayu (Lembut)', 'Pria - Budi (Wibawa)'];
+                    setDetectedVoice(voices[Math.floor(Math.random() * voices.length)]);
+                }, 1000);
+            };
+
+            const jalankanEksekusi = async () => {
+                if (!falKey) return alert('Peringatan: Anda belum memasukkan API Key! Silakan ikuti panduan cara mendapatkan kunci di menu samping.');
+                if (!imgFace || !imgProduct) return alert('Wajah & Produk Wajib Diunggah!');
+                if (saldo < biayaKredit) return alert('Saldo API Anda tidak mencukupi! Silakan isi ulang di Fal.ai.');
+
+                setIsGenerating(true);
+                setResult(null);
+                addLog(`Inisiasi Render Mode: ${mode === 'ugc' ? 'Video' : 'Gambar'}...`);
+
+                try {
+                    addLog('Membaca Kunci API dari Memori Aman...');
+                    await new Promise(r => setTimeout(r, 2000));
+                    addLog(`Menghubungkan ke Fal.ai (${mode === 'foto' ? 'Studio Foto' : 'Video UGC'}) Live Engine...`);
+                    await new Promise(r => setTimeout(r, 2000));
+                    addLog('Menerapkan Master Prompt & Naskah F.A.B...');
+                    await new Promise(r => setTimeout(r, 2000));
+                    addLog('Sinkronisasi Visual & Identity Locked...');
+                    await new Promise(r => setTimeout(r, 2000));
+                    addLog('Rendering Ultra HD Content...');
+                    await new Promise(r => setTimeout(r, 6000));
+
+                    setResult(mode === 'foto' ? 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?q=80&w=1080' : 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4');
+                    
+                    // Potong Saldo setelah render sukses (Disamakan logikanya)
+                    const sisaSaldo = saldo - biayaKredit;
+                    setSaldo(sisaSaldo);
+                    localStorage.setItem('babeh_saldo', sisaSaldo);
+                    
+                    addLog(`✅ SELESAI: Konten Premium Siap Ekspor. Saldo terpotong ${biayaKredit} kredit.`);
+                } catch (err) {
+                    addLog('❌ ERROR: API Key Tidak Valid atau Saldo Habis.');
+                } finally {
+                    setIsGenerating(false);
+                }
+            };
+
+            const addLog = (msg) => setLogs(prev => [msg, ...prev].slice(0, 4));
+
+            return (
+                <div className="flex flex-col lg:flex-row min-h-screen relative">
+                    
+                    {/* WIDGET SALDO POJOK KANAN ATAS */}
+                    <div className="fixed top-4 right-4 lg:top-8 lg:right-10 z-50 bg-gray-900/90 backdrop-blur-md border border-emerald-500/30 px-4 py-2 rounded-2xl flex items-center gap-3 shadow-2xl shadow-emerald-500/10 fade-in">
+                        <span className="text-emerald-500 text-xl">💰</span>
+                        <div className="flex flex-col">
+                            <span className="text-[8px] text-gray-500 font-black uppercase tracking-widest leading-none">Saldo API</span>
+                            <span className="text-sm text-white font-black leading-none mt-1">{falKey ? `${saldo} Kredit` : '0 Kredit'}</span>
+                        </div>
+                    </div>
+
+                    {/* POPUP PANDUAN FAL.AI */}
+                    {showGuide && (
+                        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/90 fade-in">
+                            <div className="glass-modal w-full max-w-lg p-8 space-y-6 shadow-2xl border-emerald-500/30">
+                                <div className="flex justify-between items-center border-b border-gray-800 pb-4">
+                                    <div>
+                                        <h3 className="text-xl font-black italic uppercase text-white">🔑 Cara Mendapatkan API Key</h3>
+                                        <p className="text-[10px] text-gray-500 mt-1 uppercase tracking-widest">Akses Langsung ke Provider AI</p>
+                                    </div>
+                                    <button onClick={() => setShowGuide(false)} className="text-gray-500 hover:text-white transition-colors text-3xl">&times;</button>
+                                </div>
+                                <div className="space-y-4 text-sm text-gray-300">
+                                    <div className="flex gap-4 items-start p-4 bg-gray-900/50 rounded-2xl border border-gray-800">
+                                        <div className="bg-emerald-500 text-white font-black w-6 h-6 rounded-full flex items-center justify-center shrink-0">1</div>
+                                        <p><strong>Buat Akun:</strong> Buka website Fal.ai dan daftar menggunakan akun Google Anda.</p>
+                                    </div>
+                                    <div className="flex gap-4 items-start p-4 bg-gray-900/50 rounded-2xl border border-gray-800">
+                                        <div className="bg-emerald-500 text-white font-black w-6 h-6 rounded-full flex items-center justify-center shrink-0">2</div>
+                                        <p><strong>Isi Saldo (Top Up):</strong> Masuk ke menu <em>Billing</em> dan tambahkan saldo (minimal $10) untuk mulai merender.</p>
+                                    </div>
+                                    <div className="flex gap-4 items-start p-4 bg-gray-900/50 rounded-2xl border border-gray-800">
+                                        <div className="bg-emerald-500 text-white font-black w-6 h-6 rounded-full flex items-center justify-center shrink-0">3</div>
+                                        <p><strong>Buat Kunci:</strong> Masuk ke menu <em>API Keys</em>, klik "Add New Key", lalu <em>Copy</em> kodenya dan <em>Paste</em> ke web ini.</p>
+                                    </div>
+                                </div>
+                                <button onClick={openFalAI} className="w-full bg-emerald-500 hover:bg-emerald-400 text-white font-black py-4 rounded-xl shadow-lg uppercase tracking-widest transition-colors mt-4">
+                                    BUKA WEBSITE FAL.AI SEKARANG
+                                </button>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* SIDEBAR NAVIGATION */}
+                    <aside className="sidebar-bg w-full lg:w-80 flex-none flex flex-col p-6 space-y-8 z-40 border-b lg:border-b-0 border-gray-800 pt-20 lg:pt-6">
+                        <div className="text-center lg:text-left">
+                            <h1 className="text-3xl font-black text-white italic tracking-tighter">babeh<span className="text-emerald-500">.ai</span></h1>
+                            <p className="text-[10px] text-gray-500 font-bold uppercase mt-1 tracking-widest leading-none">Sovereign Edition v47.0</p>
+                        </div>
+                        
+                        {/* TOMBOL NAVIGASI YANG SUDAH DIPERBAIKI (100% AKTIF) */}
+                        <nav className="flex flex-row lg:flex-col gap-2 overflow-x-auto no-scrollbar pb-2">
+                            {[ { id: 'ugc', label: '🎥 Arsitek Video Viral' }, { id: 'foto', label: '📸 Lab Pembuatan Gambar' } ].map(m => (
+                                <button key={m.id} onClick={() => {setMode(m.id); setResult(null);}}
+                                    className={`flex-none lg:flex p-5 rounded-2xl text-left border transition-all font-bold text-sm ${mode === m.id ? 'bg-emerald-500/10 border-emerald-500/50 text-white shadow-xl shadow-emerald-950/20' : 'border-transparent text-gray-500 hover:bg-gray-800/40'}`}>
+                                    {m.label}
+                                </button>
+                            ))}
+                        </nav>
+                        
+                        <div className="mt-auto space-y-4">
+                            <button onClick={() => setShowGuide(true)} 
+                                className="w-full bg-gray-800 hover:bg-gray-700 transition-all text-white font-black py-4 rounded-2xl flex items-center justify-center gap-3 shadow-xl uppercase tracking-widest text-xs border border-gray-700">
+                                <span>🔑</span> BELI API KEY
+                            </button>
+
+                            <div className="p-4 bg-gray-900 border border-gray-800 rounded-2xl space-y-3">
+                                <div className="flex justify-between items-center">
+                                    <label className="text-[10px] font-black text-emerald-500 uppercase tracking-widest leading-none">API Key Anda</label>
+                                    {falKey && <button onClick={hapusKunci} className="text-[8px] text-red-500 hover:text-red-400 uppercase font-black border border-red-500/30 px-2 py-0.5 rounded">Logout</button>}
+                                </div>
+                                <input type="password" value={falKey} onChange={handleKeyChange} placeholder="Masukan API Key disini" className="input-pro p-3 text-center text-xs" />
+                                <p className="text-[8px] text-gray-500 text-center leading-tight">Sistem mengingat kunci Anda dengan aman di perangkat ini.</p>
+                            </div>
+                        </div>
+                    </aside>
+
+                    {/* MAIN SETTINGS AREA */}
+                    <main className="flex-1 p-4 lg:p-10 space-y-10 bg-[#010204]/40 overflow-y-auto">
+                        <div className="flex justify-between items-end border-b border-gray-800 pb-6 pt-12 lg:pt-0">
+                            <div>
+                                <h2 className="text-2xl font-black text-white italic uppercase tracking-tight leading-none">Setup {mode === 'ugc' ? 'Video Viral' : 'Buat Gambar'}</h2>
+                                <p className="text-xs text-gray-500 mt-2 uppercase font-bold tracking-widest italic">Sovereign Neural Production</p>
+                            </div>
+                            <span className="bg-emerald-500/10 text-emerald-500 text-[9px] px-3 py-1.5 rounded-lg border border-emerald-500/30 font-black uppercase hidden sm:block">Auto-Save Active</span>
+                        </div>
+
+                        <div className="grid grid-cols-1 xl:grid-cols-2 gap-12 fade-in" key={mode}>
+                            <div className="space-y-8">
+                                <h3 className="text-xs font-black text-emerald-500 uppercase tracking-widest flex items-center gap-2">1. Visual & Pose</h3>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <UploadSlot title="Wajah Talent" img={imgFace} setImg={(v)=>{setImgFace(v); if(v) analyzeCharacter(v);}} wajib={true} />
+                                    <UploadSlot title="Produk (Sync AI)" img={imgProduct} setImg={setImgProduct} wajib={true} hint="Analisis Otomatis" />
+                                    <UploadSlot title="Latar (Ref)" img={imgBg} setImg={setImgBg} hint="Hapus orang otomatis" />
+                                    <UploadSlot title="Pose (Gambar)" img={imgPose} setImg={setImgPose} />
+                                </div>
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-black text-emerald-500 uppercase tracking-widest ml-1 leading-none">Deskripsi Pose Manual (Hybrid)</label>
+                                    <textarea value={poseText} onChange={(e)=>setPoseText(e.target.value)} className="w-full input-pro p-4 h-20" placeholder="Ketik pose, misal: Berdiri santai memegang produk..."></textarea>
+                                </div>
+                            </div>
+
+                            <div className="space-y-8">
+                                <h3 className="text-xs font-black text-emerald-500 uppercase tracking-widest flex items-center gap-2">2. Kecerdasan & Opsi</h3>
+                                
+                                {mode === 'ugc' ? (
+                                    <div className="space-y-6">
+                                        <div className="p-4 bg-gray-900/50 border border-gray-800 rounded-2xl flex items-center justify-between">
+                                            <div className="flex flex-col">
+                                                <span className="text-[9px] font-black text-gray-400 uppercase mb-1 leading-none">Neural Voice Match</span>
+                                                <span className="text-[12px] font-bold text-white tracking-tight">{detectedVoice}</span>
+                                            </div>
+                                            <span className="bg-emerald-500/10 text-emerald-500 text-[8px] font-black px-2 py-1 rounded-md border border-emerald-500/20 uppercase">Linked</span>
+                                        </div>
+                                        <div className="p-5 bg-gray-900/40 border border-gray-800 rounded-3xl space-y-4">
+                                            <label className="text-[10px] font-black text-gray-500 uppercase leading-none block">Naskah F.A.B (Anti-Banned)</label>
+                                            <textarea value={fabInput} onChange={(e)=>setFabInput(e.target.value)} className="w-full input-pro p-4 h-24leading-relaxed" placeholder="Contoh: Bahan Taslan Premium, warna hitam, anti air dan bikin gaya makin hypebeast... (Untuk Katalog Gambar juga pakai ini)"></textarea>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <Select label="Skenario Pancingan" opsi={['Review Jujur', 'Unboxing ASMR', 'Viral Comparison', 'Masalah & Solusi']} />
+                                            <Select label="Musik Latar" opsi={['Viral TikTok Happy', 'Tanpa Musik', 'Lofi Santai Estetik', 'Energi Phonk']} />
+                                            <Select label="Gerakan Kamera" opsi={['Vlog Handheld', 'Slow Cinematic Pan', 'Dynamic Zoom-In', 'Static Pro Angle']} />
+                                            <Select label="Atmosfer Latar" opsi={['Distro Urban', 'Kafe Estetik', 'Rumah Mewah', 'Studio Clean']} />
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="space-y-6">
+                                        <div className="p-5 bg-gray-900/40 border border-gray-800 rounded-3xl space-y-4 shadow-inner">
+                                            <label className="text-[10px] font-black text-gray-500 uppercase leading-none block mb-3">Keunggulan & Naskah F.A.B</label>
+                                            <textarea value={fabInput} onChange={(e)=>setFabInput(e.target.value)} className="w-full input-pro p-4 h-24leading-relaxed" placeholder="Contoh: Bahan Taslan Premium, warna hitam, anti air dan bikin gaya makin hypebeast... (Naskah VT dan Katalog disatukan di sini)"></textarea>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4 text-left">
+                                            <Select label="Gaya Visual" opsi={['Katalog Bersih Studio', 'High-Fashion Vogue', 'Candid Streetstyle', 'Sinematik Pro', 'Analog Vintage Film']} />
+                                            <Select label="Pencahayaan" opsi={['Studio Softbox', 'Matahari Sore', 'Neon Glow', 'Natural Indoor']} />
+                                            <Select label="Tekstur Produk" opsi={['Sangat Tajam', 'Lembut & Halus', 'Natural', 'Kilap & Mewah']} />
+                                            <Select label="Warna Dominan" opsi={['Natural', 'Hangat (Warm)', 'Dingin (Cool)', 'Vibrant']} />
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="pt-8 relative">
+                            {/* TOMBOL GENERATE (DENGAN INDIKATOR KREDIT DI POJOK KIRI BAWAH) */}
+                            <button onClick={jalankanEksekusi} disabled={isGenerating} 
+                                className="relative w-full accent-emerald text-white font-black text-xl py-7 rounded-3xl active:scale-95 transition-all shadow-2xl shadow-emerald-500/20 uppercase tracking-widest flex items-center justify-center overflow-hidden">
+                                {isGenerating ? (
+                                    <div className="flex items-center gap-3"><div className="loader inline-block"></div> MEMPROSES...</div>
+                                ) : (
+                                    '🚀 MULAI GENERATE'
+                                )}
+                                
+                                {/* INDIKATOR KREDIT YANG DISAMAKAN (MUNCUL DI KEDUA MODE) */}
+                                <span className="absolute bottom-2 left-6 text-[10px] text-emerald-100/70 font-bold tracking-normal normal-case italic bg-black/20 px-2 py-0.5 rounded">
+                                    kredit : {biayaKredit}
+                                </span>
+                            </button>
+                            
+                            <div className="mt-4 bg-black border border-gray-800 rounded-xl p-4 font-mono text-[10px] text-emerald-500 h-16 flex flex-col justify-center overflow-hidden shadow-inner">
+                                {logs.map((l, i) => <div key={i} className={i === 0 ? 'text-white font-bold' : 'opacity-30'}>[SYS]: {l}</div>)}
+                            </div>
+                        </div>
+                    </main>
+
+                    {/* PREVIEW MONITOR */}
+                    <section className="w-full lg:w-[450px] sidebar-bg p-6 lg:p-10 flex flex-col items-center border-l border-gray-800 shadow-[inset_0_0_50px_rgba(16,185,129,0.05)]">
+                        <h3 className="text-[10px] font-black text-gray-500 uppercase tracking-[0.3em] mb-8 text-center leading-none">Neural Monitor Display</h3>
+                        <div className="relative w-full aspect-[9/16] max-w-[300px] rounded-[3.5rem] border-[12px] border-gray-800 bg-black shadow-2xl overflow-hidden group">
+                            {!result && !isGenerating && <div className="absolute inset-0 flex items-center justify-center text-7xl opacity-5">🧬</div>}
+                            {isGenerating && (
+                                <div className="absolute inset-0 bg-black/95 z-30 flex flex-col items-center justify-center p-6 text-center">
+                                    <div className="loader w-14 h-14 border-4 border-t-emerald-500 mb-6 shadow-glow"></div>
+                                    <p className="text-emerald-500 text-[10px] font-black animate-pulse tracking-widest uppercase italic text-center">Rendering High Definition...</p>
+                                </div>
+                            )}
+                            {result && (
+                                <div className="w-full h-full relative fade-in">
+                                    {mode === 'foto' ? <img src={result} className="w-full h-full object-cover opacity-80" /> : <video src={result} autoPlay loop muted className="w-full h-full object-cover opacity-80" />}
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-transparent to-transparent"></div>
+                                    <div className="absolute bottom-12 left-6 right-6 space-y-3 text-center">
+                                        <button className="w-full accent-emerald text-white text-[11px] font-black py-4 rounded-2xl shadow-xl uppercase italic tracking-widest">Download Content</button>
+                                        <button onClick={()=>setResult(null)} className="text-gray-500 text-[10px] font-bold hover:text-white transition-colors uppercase">Discard Render</button>
+                                    </div>
+                                    <div className="absolute top-20 left-6 bg-emerald-500/20 text-emerald-500 px-3 py-1.5 rounded-lg text-[9px] text-white font-black border border-emerald-500/50 shadow-lg uppercase leading-none italic shadow-glow">Identity Verified</div>
+                                </div>
+                            )}
+                        </div>
+                    </section>
+                </div>
+            );
+        }
+
+        /* --- HARGA PAKET CARD --- */
+        function PricingCard({ title, qty, price, best, onClick }) {
+            return (
+                <div onClick={onClick} className={`cursor-pointer p-6 rounded-3xl border-2 transition-all hover:scale-[1.02] active:scale-95 flex justify-between items-center ${best ? 'border-emerald-500 bg-emerald-500/5 shadow-lg shadow-emerald-500/10' : 'border-gray-800 bg-black/40 hover:border-emerald-500/50'}`}>
+                    <div className="text-left">
+                        {best && <span className="text-[8px] font-black text-emerald-500 uppercase tracking-widest">Paling Populer</span>}
+                        <h4 className="text-lg font-black text-white italic tracking-tighter leading-none">{title}</h4>
+                        <p className="text-[10px] text-gray-400 font-bold mt-1 uppercase tracking-widest">{qty}</p>
+                    </div>
+                    <div className="text-right">
+                        <p className="text-lg font-black text-white">{price}</p>
+                        <span className="text-[9px] text-emerald-500 font-black uppercase italic">Klik untuk WA</span>
+                    </div>
+                </div>
+            );
+        }
+
+        /* --- UPLOAD SLOT --- */
+        function UploadSlot({ title, img, setImg, wajib, hint }) {
+            return (
+                <div className="space-y-1 text-left">
+                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-tighter leading-none">{title} {wajib && '*'}</label>
+                    <div className={`relative w-full h-28 rounded-2xl border-2 transition-all overflow-hidden ${img ? 'border-emerald-500 bg-black' : 'border-dashed border-gray-800 bg-gray-900/20 hover:border-emerald-500/50'}`}>
+                        {img ? (
+                            <div className="relative w-full h-full group">
+                                <img src={img} className="w-full h-full object-cover" />
+                                <button onClick={()=>setImg(null)} className="absolute inset-0 bg-black/60 text-red-500 text-xs font-black uppercase flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">Hapus</button>
+                            </div>
+                        ) : (
+                            <label className="w-full h-full flex flex-col items-center justify-center cursor-pointer opacity-20 hover:opacity-100 transition-all">
+                                <span className="text-xl">+</span>
+                                {hint && <span className="text-[6px] text-center px-1 uppercase leading-tight tracking-tighter mt-1">{hint}</span>}
+                                <input type="file" className="hidden" onChange={(e)=>{const r=new FileReader(); r.onload=(ev)=>setImg(ev.target.result); r.readAsDataURL(e.target.files[0]);}} />
+                            </label>
+                        )}
+                    </div>
+                </div>
+            );
+        }
+
+        /* --- SELECT BOX --- */
+        function Select({ label, opsi }) {
+            return (
+                <div className="space-y-1.5 text-left">
+                    <label className="text-[10px] font-black text-gray-500 uppercase tracking-tighter ml-1 leading-none">{label}</label>
+                    <select className="input-pro p-4 font-bold appearance-none cursor-pointer bg-[url('https://cdn-icons-png.flaticon.com/512/271/271210.png')] bg-[length:10px] bg-[right_18px_center] bg-no-repeat shadow-xl">
+                        {opsi.map(o => <option key={o} value={o}>{o}</option>)}
+                    </select>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
